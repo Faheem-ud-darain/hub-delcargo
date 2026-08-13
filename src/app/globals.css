@@ -1,0 +1,597 @@
+@import "tailwindcss";
+
+/* DuoIcons — duotone icon set, wired up via the static-CSS import path (the
+   "recommended" install method per the official docs), NOT the JS plugin.
+   `base` provides the shared `.duo-icons-*` sizing/layer-color mechanics;
+   `icons` pulls in every icon glyph as a ready-made CSS class (see
+   https://duoicons.vercel.app/ for the full list and usage:
+   <span class="duo-icons-airplay text-3xl text-indigo-500"></span>).
+   The package's JS plugin (tailwind.config.js) is intentionally NOT loaded
+   here — see the comment in that file for why. */
+@import "@duo-icons/tailwind/base";
+@import "@duo-icons/tailwind/icons";
+
+@variant dark (.disable-dark-mode-entirely);
+
+:root {
+  /* Blueprint Canvas Theme: Strict light mode colors */
+  --background: #f8fafc; /* Slate 50 background */
+  --foreground: #0f172a; /* Slate 900 text */
+  --surface: #ffffff;    /* Card and sidebar background */
+  --border: #e2e8f0;     /* Slate 200 border */
+  --primary: #ea580c;    /* DelCargo Orange */
+  --primary-hover: #c2410c;
+  --indigo: #4f46e5;
+  --emerald: #10b981;
+  --amber: #f59e0b;
+  --rose: #ef4444;
+
+  /* Custom animations matching Emil Kowalski's recommendations */
+  --ease-out-snappy: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-smooth: cubic-bezier(0.77, 0, 0.175, 1);
+
+  /* Top of the z-index scale — named instead of the bare z-[999]/z-[9999]
+     these replace. The rest of the app's overlays (dropdowns, sticky
+     headers, the floating pill nav, modals, the fullscreen image/tracking
+     viewers) already sit within Tailwind's own 10/20/40/50/60/100/200
+     scale and aren't touched here; these two are the ones that jumped to
+     an arbitrary "big enough number" with no relation to anything else.
+     --z-splash: the native-splash-to-JS handoff overlay (SplashScreenOverlay)
+     — must outrank every other layer since it covers the entire app while
+     it's mounted. --z-toast: notification toasts — one step above splash
+     so a toast that somehow fires during the splash hand-off (or any
+     future overlay) is never hidden by it. */
+  --z-splash: 1000;
+  --z-toast: 1100;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-indigo: var(--indigo);
+  --color-emerald: var(--emerald);
+  --color-amber: var(--amber);
+  --color-rose: var(--rose);
+  /* Space Grotesk (display) + Plus Jakarta Sans (body) — see layout.tsx.
+     `font-display` is an opt-in Tailwind utility for headings/stat numbers;
+     everything else defaults to `font-sans` (the body face). No third font
+     loaded for mono — a system monospace stack covers the handful of
+     places (IDs, timestamps) that want tabular alignment. */
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* Stops Android's WebView "font boosting" accessibility behavior from
+   inflating text past its coded size — this is what was making chat
+   placeholder text, the ticket header title/subtext, etc. render visibly
+   larger than their Tailwind text-[Npx] classes on the actual device while
+   fixed-size icons/buttons stayed correctly sized (font-boosting only
+   scales text glyphs, not layout dimensions, which is why the two drifted
+   out of proportion with each other on-device but looked fine in a normal
+   browser preview). */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body), Arial, sans-serif;
+  min-height: 100vh;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior-y: none; /* Native app feel, no pull-to-refresh bounce */
+}
+
+@layer utilities {
+  /* IMPORTANT — do not combine these with a Tailwind padding shorthand
+     that touches the same side (e.g. `p-4 pt-safe`, `py-4 pb-safe`,
+     `p-3 md:p-4 pb-safe`). Both end up in Tailwind v4's generated
+     `utilities` layer at the same specificity, so whichever rule the
+     build happens to emit later silently wins the cascade — meaning
+     this safe-area padding can compile away to nothing (or the reverse:
+     it wins and erases the shorthand's base padding on Android/web,
+     where env() legitimately resolves to 0, not "unsupported") depending
+     on build-time class ordering, with zero visible sign of it in the
+     source. This is the actual reason the iOS status-bar/home-indicator
+     overlap fix didn't reliably take even though the classes were
+     present in the JSX (see Modal.tsx, TeamChatView.tsx, TicketsView.tsx,
+     auth/page.tsx, Sidebar.tsx's mobile drawer — all fixed to use an
+     arbitrary-value padding-top/padding-bottom that adds
+     env(safe-area-inset-top/bottom) on top of the element's base padding
+     inline, instead of a separate class, so there's no cascade
+     ambiguity). Only use the bare .pt-safe/.pb-safe class when nothing
+     else on that element sets the same padding side (e.g. TopNav's
+     header, which sizes with min-h instead of vertical padding).
+     Whatever you do, never write out that arbitrary-value syntax itself
+     with a "..." or "<placeholder>" stand-in inside a comment anywhere
+     in this codebase — Tailwind's class scanner reads comments too and
+     will try to generate CSS for the literal placeholder text, which is
+     invalid and breaks the entire stylesheet build (this happened once
+     already; see git history). Always spell out a real value. */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 20px);
+  }
+  /* max(), not a plain env() fallback — on platforms/devices with no real
+     top inset (Android, where the WebView doesn't draw under the status
+     bar by default; or a non-notched iPhone), env(safe-area-inset-top)
+     legitimately resolves to 0, which left headers with literally zero top
+     breathing room instead of just "no extra inset". 20px (not the earlier
+     12px) is the floor, matching .pb-safe's own 20px fallback above for
+     consistency — 12px read as visually indistinguishable from 0 in
+     testing. An actual notch/status bar inset (usually 44–59px) always
+     wins since max() picks whichever is larger. */
+  .pt-safe {
+    padding-top: max(20px, env(safe-area-inset-top, 0px));
+  }
+}
+
+/* REMOVED (impeccable pass): this used to blanket-force every <button> and
+   <a> on mobile to a 44px minimum box, and every <input>/<select>/<textarea>
+   to 16px font — regardless of that element's own Tailwind sizing.
+   This is what was silently causing basically every "icon/button X is
+   bigger than Y" report across the app: <label>-based icons (like the
+   Paperclip attachment trigger) were never covered by the `button, a`
+   selector and kept their true h-8/h-9 size, while sibling <button>
+   elements (Send, the Announcement toggle, Close Ticket, the profile
+   camera badge, etc.) all got silently inflated to 44px no matter what
+   size class they had. Same story for the `font-size: 16px !important` on
+   textareas — it stomped the deliberately smaller chat/reply placeholder
+   text sizing.
+   The zoom-prevention this was originally for is already handled by the
+   viewport config in layout.tsx (userScalable: false, maximumScale: 1), so
+   removing this doesn't reintroduce iOS zoom-on-focus. Components that
+   genuinely want a generous 44px tap target already opt into it explicitly
+   per-button (e.g. `min-h-[44px] md:min-h-0` on several form CTAs) — that's
+   the correct, non-global way to do it. */
+
+/* Headings default to the display face (Space Grotesk) automatically —
+   means every page's <h1>/<h2>/<h3> picks up the new pairing without a
+   className change per instance. Anywhere that specifically wants the body
+   face on a heading-level element can override with `font-sans`. */
+h1, h2, h3 {
+  font-family: var(--font-display), Arial, sans-serif;
+  text-wrap: balance;
+}
+
+/* Base button animations */
+button, select, input, textarea {
+  transition: transform 200ms var(--ease-out-snappy), border-color 200ms var(--ease-out-snappy), background-color 200ms var(--ease-out-snappy), box-shadow 200ms var(--ease-out-snappy);
+}
+
+button:active {
+  transform: scale(0.97);
+}
+
+@keyframes enter-modal {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Mirrors enter-modal exactly in reverse (see improve-animations plan 002) —
+   modal previously unmounted instantly on close with no exit motion. */
+@keyframes exit-modal {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+/* Nav/list entrance stagger — used once on first mount (sidebar nav links,
+   dashboard stat cards), never re-triggered on client-side route changes
+   since those components stay mounted. Rare/first-load frequency tier, so a
+   little delight here is earned rather than annoying. */
+@keyframes stagger-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.stagger-item {
+  animation: stagger-in 420ms var(--ease-out-snappy) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stagger-item {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Popover/dropdown/banner entrance (improve-animations plan 001) — replaces
+   dead `animate-in fade-in slide-in-from-top-* duration-150` classNames that
+   compiled to nothing since tailwindcss-animate is not installed in this
+   project. Kept subtle (6px offset) since several of these surfaces (bell,
+   profile, search) are opened tens of times/day. */
+.popover-enter {
+  animation: popover-in 220ms var(--ease-out-snappy) both;
+}
+@keyframes popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Drawer/sheet entrance from an edge (improve-animations plan 001) — mobile
+   nav drawer's slide from the left. */
+.drawer-enter-left {
+  animation: drawer-in-left 280ms var(--ease-out-snappy) both;
+}
+@keyframes drawer-in-left {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* Bottom sheet entrance (mobile search overlay, modals) */
+.drawer-enter-bottom {
+  animation: drawer-in-bottom 320ms var(--ease-out-snappy) both;
+}
+@keyframes drawer-in-bottom {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes drawer-exit-bottom {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+/* Full-screen surface fade (improve-animations plan 001) — backdrops, the
+   mobile search overlay, the consent gate's backdrop layer, banners, and the
+   login page. */
+.fade-enter {
+  animation: fade-in-simple 280ms var(--ease-in-out-smooth) both;
+}
+@keyframes fade-in-simple {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* First-run consent gate dialog (improve-animations plan 001) — rare,
+   higher-weight surface; earns its own slightly larger scale-in than
+   .popover-enter's subtle 6px/0.98. */
+.dialog-enter {
+  animation: dialog-in 340ms var(--ease-out-snappy) both;
+}
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .popover-enter, .drawer-enter-left, .fade-enter, .dialog-enter {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Sidebar unseen-activity dots (improve-animations plan 006) — pop in on
+   first appearance rather than snapping into existence; disappears instantly
+   when marked seen (no exit animation needed for that direction). */
+.presence-dot {
+  transition: scale 260ms var(--ease-out-snappy), opacity 260ms var(--ease-out-snappy);
+
+  @starting-style {
+    scale: 0;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .presence-dot {
+    transition: none;
+  }
+}
+
+/* Dashboard main-content route transition (impeccable pass) — content
+   previously swapped instantly with zero motion when navigating between
+   sidebar tabs, which read as unfinished. Keyed by pathname in
+   (dashboard)/layout.tsx so it re-triggers on every route change, not just
+   first mount. Kept to opacity + a small rise, not a slide, since this
+   fires on every single nav click (high-frequency surface). */
+.page-enter {
+  animation: page-in 320ms var(--ease-out-snappy) both;
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Native app splash screen (SplashScreenOverlay.tsx) — a hand-built
+   sequence recreating the real "DC HUB" app icon piece by piece, instead of
+   fading/scaling a single flat image. Each step below fires once, staggered
+   via animation-delay, in this order: bubble outline draws in -> tail pops
+   in -> "D" pops in -> "C" pops in -> "by DelCargo" focuses in from wide,
+   faded letter-spacing to settled. Timings here must stay in sync with
+   HOLD_MS in SplashScreenOverlay.tsx (that timer can't fire before the
+   tagline's own delay + duration below have had time to finish). */
+
+.splash-bubble-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: splash-bubble-draw 640ms var(--ease-out-snappy) 60ms both;
+}
+@keyframes splash-bubble-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+.splash-tail-in {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: splash-tail-in 260ms var(--ease-out-snappy) 620ms both;
+}
+@keyframes splash-tail-in {
+  from { opacity: 0; transform: scale(0.4); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Shared "pop in with a little overshoot" spring for the two letters —
+   00 is deliberately a 3-stop keyframe (not a plain from/to) so it actually
+   overshoots past 100% scale before settling, which reads as a spring
+   rather than a linear ease no matter which cubic-bezier wraps it. */
+.splash-letter {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: splash-letter-pop 420ms var(--ease-out-snappy) both;
+}
+.splash-letter-d { animation-delay: 700ms; }
+.splash-letter-c { animation-delay: 820ms; }
+@keyframes splash-letter-pop {
+  0% { opacity: 0; transform: scale(0.5) translateY(6px); }
+  70% { opacity: 1; transform: scale(1.08) translateY(0); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* "Employee Portal" — pops in right after the C letter settles, same
+   focus-in treatment as the "by DelCargo" line below it but starting from a
+   tighter letter-spacing (0.08em, matching its own resting value) since it's
+   a real two-word label, not a wide-tracked wordmark. */
+.splash-title-in {
+  opacity: 0;
+  letter-spacing: 0.3em;
+  animation: splash-title-in 480ms var(--ease-in-out-smooth) 950ms both;
+}
+@keyframes splash-title-in {
+  from { opacity: 0; letter-spacing: 0.3em; transform: translateY(6px); }
+  to { opacity: 1; letter-spacing: 0.08em; transform: translateY(0); }
+}
+
+.splash-tagline-in {
+  opacity: 0;
+  letter-spacing: 0.4em;
+  animation: splash-tagline-in 480ms var(--ease-in-out-smooth) 1500ms both;
+}
+@keyframes splash-tagline-in {
+  from { opacity: 0; letter-spacing: 0.4em; transform: translateY(6px); }
+  to { opacity: 1; letter-spacing: 0.12em; transform: translateY(0); }
+}
+
+/* Exit: fades + drifts upward (not just scales) — a small extra touch over
+   the old plain scale-up, reads as the whole mark "releasing" rather than
+   just growing. Accelerating ease-in (not a mirrored ease-out) on purpose:
+   an ease-out exit reads as hesitant. */
+.splash-overlay-out {
+  animation: splash-overlay-out 420ms cubic-bezier(0.6, 0, 1, 0.2) both;
+}
+@keyframes splash-overlay-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-14px) scale(1.05);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash-bubble-draw, .splash-tail-in, .splash-letter, .splash-title-in, .splash-tagline-in, .splash-overlay-out {
+    animation: none;
+    opacity: 1;
+    stroke-dashoffset: 0;
+    letter-spacing: 0.12em;
+    transform: none;
+  }
+}
+
+/* ActiveEmployeesCard's and AvgHoursWorkedCard's mini sparkline (dashboard
+   Overview) — a single smooth gradient-filled area + line, not a separate
+   bar chart bolted on next to it. Two competing chart idioms (bars AND a
+   line AND dots on top of the bars) in a space this small just looked
+   busy/homemade; one clean shape reads as considerably more polished, same
+   idiom as Apple Health / most stat-card sparklines. The gradient fill
+   fades in first, the line draws itself in via a stroke animation (same
+   pathLength=1 technique as SplashScreenOverlay's speech-bubble outline),
+   then a single highlighted dot pops in at today's point — one focal
+   marker instead of one per day, which is plenty for a 7-point trend. */
+.chart-area-fill {
+  opacity: 0;
+  animation: chart-area-in 450ms var(--ease-in-out-smooth) both;
+}
+@keyframes chart-area-in {
+  to { opacity: 1; }
+}
+
+.chart-line-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: chart-line-draw 620ms var(--ease-out-snappy) both;
+}
+@keyframes chart-line-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+.chart-dot-today {
+  opacity: 0;
+  transform: scale(0.3);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: chart-dot-in 300ms var(--ease-out-snappy) 680ms both;
+}
+@keyframes chart-dot-in {
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chart-area-fill, .chart-line-draw, .chart-dot-today {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Hover/tap tooltip for the sparkline point currently being pointed at —
+   quick scale+fade pop, not a plain instant appear, matching the rest of
+   this app's animated micro-interactions. */
+.chart-tooltip-in {
+  animation: chart-tooltip-in 140ms var(--ease-out-snappy) both;
+}
+@keyframes chart-tooltip-in {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.85); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+.chart-hover-dot {
+  animation: chart-dot-in 160ms var(--ease-out-snappy) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chart-tooltip-in { animation: none; }
+  .chart-hover-dot { animation: none; }
+}
+
+/* AvgHoursWorkedCard's modal roster — each row gets its own animated
+   horizontal bar (relative to that 7-day window's top earner) so the
+   per-employee list reads as a chart at a glance, not just a column of
+   numbers. Width is set inline per row (data-driven), the bar just grows
+   in from the left with a per-row stagger — same "grow, don't just
+   appear" language as the card's own bar+line sparkline above. */
+.hbar-track {
+  height: 4px;
+  border-radius: 9999px;
+  background: #f1f5f9; /* slate-100 */
+  overflow: hidden;
+}
+.hbar-fill {
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #38bdf8, #0ea5e9); /* sky-400 -> sky-500 */
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: hbar-grow 420ms var(--ease-out-snappy) both;
+}
+@keyframes hbar-grow {
+  to { transform: scaleX(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hbar-fill {
+    animation: none;
+    transform: scaleX(1);
+  }
+}
+
+/* "X is typing…" jumping dots — used by Team Chat and Ticket screen typing
+   indicators. Three dots bounce in a staggered wave, same idea as the
+   iMessage/WhatsApp typing bubble. Wrap in a fade-in on the parent row
+   (typing-row-in) so the whole indicator appears/disappears smoothly rather
+   than popping in and out as presence polling toggles it. */
+.typing-row-in {
+  animation: typing-row-in 180ms var(--ease-out-snappy) both;
+}
+@keyframes typing-row-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.typing-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: currentColor;
+  animation: typing-dot-bounce 1200ms ease-in-out infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 160ms; }
+.typing-dot:nth-child(3) { animation-delay: 320ms; }
+@keyframes typing-dot-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .typing-row-in { animation: none; }
+  .typing-dot { animation: none; opacity: 0.8; }
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}

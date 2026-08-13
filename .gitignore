@@ -1,0 +1,90 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+!.env.example
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# AI codebase-analysis dump — regenerable, not source
+repomix-output.xml
+
+# one-off migration/refactor scripts from earlier dev sessions — not part
+# of the app; keep locally if needed, no reason to track in git
+/fix_db_types.py
+/fix_db_types2.py
+/fix_tdz.py
+/refactor_ast.js
+/refactor_ast.ts
+/refactor_employee.py
+/refactor_safe.py
+/rewrite_agent.py
+/rewrite_db.py
+/seed_test.py
+/seed_test_employee.js
+
+# tracker-agent build output — PyInstaller/Inno Setup artifacts and the
+# icon.ico/icon.icns/icon.png generated from "Tracker Icon.png" by
+# generate_icons.py. Regenerated on every build (locally or in CI), so
+# don't need to be committed — "Tracker Icon.png" itself IS tracked.
+tracker-agent/dist/
+tracker-agent/build/
+tracker-agent/*.spec
+tracker-agent/icon.ico
+tracker-agent/icon.icns
+tracker-agent/icon.png
+
+# one-off PocketBase migration scripts with a hardcoded superuser
+# email+password (ADMIN_EMAIL/ADMIN_PASSWORD) — flagged in the security
+# review. Gitignoring stops them from being committed/tracked going
+# forward, but does NOT remove them from existing git history — that
+# password still needs to be rotated on the PocketBase server and scrubbed
+# from history (e.g. git filter-repo / BFG) separately.
+/migration_data/patch_schemas.py
+/migration_data/fix_warehouse_id_mismatch.py
+/migration_data/migrate_kv_to_tables.py
+/migration_data/create_screenshots_collection.py
+/migration_data/create_team_documents_collection.py
+/migration_data/create_messages_collection.py
+/migration_data/create_inactivity_logs_collection.py
+/migration_data/patch_screenshots_mimetypes.py
+
+# Android release signing — real keystore + passwords, never commit these.
+android/keystore.properties
+*.keystore
+*.jks

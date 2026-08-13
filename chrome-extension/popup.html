@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Delcargo HR Tracker</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="logo-icon">DC</div>
+        <div class="title-group">
+          <h1>Delcargo HR</h1>
+          <span class="subtitle">Chromebook Tracker</span>
+        </div>
+      </div>
+      <div id="statusPill" class="status-pill status-offline">
+        <span class="dot"></span>
+        <span id="statusText">Disconnected</span>
+      </div>
+    </header>
+
+    <!-- SETUP SCREEN (When not connected) -->
+    <div id="setupView" class="view-section">
+      <div class="main-card">
+        <div class="setup-header">
+          <h2>Connect Tracker</h2>
+          <p>Paste the Personal Setup Code generated for you on the HR Portal (Tracker Setup screen).</p>
+        </div>
+
+        <div class="inputs-form">
+          <div class="form-group">
+            <label for="setupCodeInput">Personal Setup Code</label>
+            <textarea id="setupCodeInput" rows="3" placeholder="Paste your setup code here..." required></textarea>
+          </div>
+          <div id="setupError" class="error-msg" style="display: none;"></div>
+        </div>
+
+        <button id="connectCodeBtn" class="btn btn-primary">
+          <span>Connect Device</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- MAIN TRACKER SCREEN (When connected — matches desktop tracker) -->
+    <div id="mainView" class="view-section" style="display: none;">
+      <div class="main-card">
+        <div class="user-badge">
+          <span class="user-label">Connected Employee</span>
+          <span id="displayEmail" class="user-email">employee@delcargo.us</span>
+        </div>
+
+        <!-- Shift Active / Paused Indicator -->
+        <div id="trackingStateCard" class="tracking-state-card state-paused">
+          <div class="state-icon" id="stateIcon">⏸️</div>
+          <div class="state-details">
+            <div class="state-title" id="stateTitle">Shift Paused</div>
+            <div class="state-subtitle" id="stateSubtitle">Start shift from Web Portal</div>
+          </div>
+        </div>
+
+        <!-- Desktop Screen Capture Permission Button -->
+        <button id="grantScreenBtn" class="btn btn-primary" style="background-color: #0284c7; font-size: 11px; padding: 10px 12px;">
+          <span>🖥️ Select Entire Desktop Screen</span>
+        </button>
+
+        <!-- Full Desktop Capture Confirmed Badge -->
+        <div id="screenCaptureBadge" class="screen-capture-badge" style="display: none;">
+          <span class="screen-icon">🖥️</span>
+          <div class="screen-info">
+            <span class="screen-title">Full Desktop Mode Active</span>
+            <span id="screenDesc" class="screen-desc">Entire monitor display (all apps & windows)</span>
+          </div>
+          <span class="check-icon">✓</span>
+        </div>
+
+        <!-- Shift Duration Display -->
+        <div class="timer-section">
+          <div class="timer-label">Shift Duration</div>
+          <div id="timerDisplay" class="timer-digits">00:00:00</div>
+        </div>
+
+        <p class="auto-notice">
+          Tracking starts automatically whenever your shift is active on the portal. Closing Chrome or idling 37+ min auto-ends the shift.
+        </p>
+
+        <button id="disconnectBtn" class="btn-text">
+          Change Setup Code / Disconnect
+        </button>
+      </div>
+    </div>
+
+    <!-- Footer Stats / Indicators -->
+    <footer class="app-footer">
+      <div class="indicator">
+        <span class="indicator-dot dot-active"></span>
+        <span>Auto-tracking enabled</span>
+      </div>
+      <div class="version">v1.0.0</div>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
